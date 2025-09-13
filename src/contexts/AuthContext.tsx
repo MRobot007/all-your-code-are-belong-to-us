@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase, getCurrentUser, type User } from '@/lib/supabase'
+import { getCurrentUser, authenticateUser, saveUser, type User } from '@/lib/supabase'
 import { Loading } from '@/components/ui/loading'
 
 interface AuthContextType {
@@ -28,27 +28,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial session
+    // Get initial session from localStorage
     getCurrentUser().then(setUser).finally(() => setLoading(false))
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const userData = await getCurrentUser()
-        setUser(userData)
-      } else {
-        setUser(null)
-      }
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
   }, [])
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) return { error: error.message }
+      const user = authenticateUser(email, password)
+      if (!user) return { error: 'Invalid email or password' }
+      
+      localStorage.setItem('current_user', JSON.stringify(user))
+      setUser(user)
       return {}
     } catch (error) {
       return { error: 'An unexpected error occurred' }
@@ -57,31 +47,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (userData: SignUpData) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-      })
-
-      if (error) return { error: error.message }
-
-      if (data.user) {
-        // Insert user profile
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: userData.email,
-            name: userData.name,
-            enrollment_no: userData.enrollmentNo,
-            semester: userData.semester,
-            branch: userData.branch,
-            course: userData.course,
-            role: userData.role,
-          })
-
-        if (profileError) return { error: profileError.message }
+      // Check if user already exists
+      const existingUsers = JSON.parse(localStorage.getItem('attendance_users') || '[]')
+      if (existingUsers.find((u: User) => u.email === userData.email)) {
+        return { error: 'User already exists with this email' }
       }
 
+      // Create new user
+      const newUser: User = {
+        id: crypto.randomUUID(),
+        email: userData.email,
+        password: userData.password,
+        name: userData.name,
+        enrollment_no: userData.enrollmentNo,
+        semester: userData.semester,
+        branch: userData.branch,
+        course: userData.course,
+        role: userData.role,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+
+      saveUser(newUser)
       return {}
     } catch (error) {
       return { error: 'An unexpected error occurred' }
@@ -89,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    localStorage.removeItem('current_user')
     setUser(null)
   }
 

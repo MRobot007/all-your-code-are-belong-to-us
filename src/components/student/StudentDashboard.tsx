@@ -14,7 +14,7 @@ import {
   Scan,
   X
 } from 'lucide-react'
-import { supabase, type AttendanceRecord } from '@/lib/supabase'
+import { getAllSessions, getAllRecords, saveRecord, type AttendanceRecord, type AttendanceSession } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { Loading } from '@/components/ui/loading'
@@ -49,21 +49,23 @@ export function StudentDashboard() {
 
   const loadAttendanceData = async () => {
     try {
-      const { data } = await supabase
-        .from('attendance_records')
-        .select(`
-          *,
-          session:attendance_sessions(*)
-        `)
-        .eq('user_id', user?.id)
-        .order('timestamp', { ascending: false })
+      const allRecords = getAllRecords()
+      const allSessions = getAllSessions()
+      
+      // Get user's attendance records
+      const userRecords = allRecords
+        .filter(r => r.user_id === user?.id)
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .map(record => ({
+          ...record,
+          session: allSessions.find(s => s.id === record.session_id)
+        }))
 
-      const records = data || []
-      setAttendanceHistory(records)
+      setAttendanceHistory(userRecords)
 
       // Calculate stats
-      const totalAttended = records.length
-      const thisMonth = records.filter(r => {
+      const totalAttended = userRecords.length
+      const thisMonth = userRecords.filter(r => {
         const recordDate = new Date(r.timestamp)
         const now = new Date()
         return recordDate.getMonth() === now.getMonth() && 
@@ -73,7 +75,7 @@ export function StudentDashboard() {
       setStats({
         totalAttended,
         thisMonth,
-        attendanceRate: totalAttended > 0 ? Math.round((totalAttended / totalAttended) * 100) : 0
+        attendanceRate: totalAttended > 0 ? 100 : 0 // For demo purposes, show 100% if any attendance
       })
     } catch (error) {
       console.error('Error loading attendance:', error)
@@ -117,13 +119,9 @@ export function StudentDashboard() {
     console.log('QR Code scanned:', decodedText)
     
     try {
-      // Check if session exists and is active
-      const { data: session } = await supabase
-        .from('attendance_sessions')
-        .select('*')
-        .eq('qr_code', decodedText)
-        .eq('is_active', true)
-        .single()
+      // Find session by QR code
+      const allSessions = getAllSessions()
+      const session = allSessions.find(s => s.qr_code === decodedText && s.is_active)
 
       if (!session) {
         toast({
@@ -135,12 +133,10 @@ export function StudentDashboard() {
       }
 
       // Check if already marked attendance for this session
-      const { data: existingRecord } = await supabase
-        .from('attendance_records')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('session_id', session.id)
-        .single()
+      const allRecords = getAllRecords()
+      const existingRecord = allRecords.find(r => 
+        r.user_id === user?.id && r.session_id === session.id
+      )
 
       if (existingRecord) {
         toast({
@@ -152,16 +148,15 @@ export function StudentDashboard() {
       }
 
       // Mark attendance
-      const { error } = await supabase
-        .from('attendance_records')
-        .insert({
-          user_id: user?.id,
-          session_id: session.id,
-          timestamp: new Date().toISOString(),
-          status: 'present'
-        })
+      const newRecord: AttendanceRecord = {
+        id: crypto.randomUUID(),
+        user_id: user?.id || '',
+        session_id: session.id,
+        timestamp: new Date().toISOString(),
+        status: 'present'
+      }
 
-      if (error) throw error
+      saveRecord(newRecord)
 
       toast({
         title: "Success!",

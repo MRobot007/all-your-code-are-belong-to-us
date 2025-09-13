@@ -14,7 +14,7 @@ import {
   Activity,
   TrendingUp
 } from 'lucide-react'
-import { supabase, type AttendanceSession, type AttendanceRecord } from '@/lib/supabase'
+import { getAllUsers, getAllSessions, getAllRecords, saveSession, type AttendanceSession, type AttendanceRecord, type User } from '@/lib/supabase'
 import { useToast } from '@/hooks/use-toast'
 import { Loading } from '@/components/ui/loading'
 import QRCode from 'qrcode'
@@ -40,42 +40,39 @@ export function AdminDashboard() {
 
   const loadData = async () => {
     try {
-      // Load sessions
-      const { data: sessionsData } = await supabase
-        .from('attendance_sessions')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      // Load attendance records with user data
-      const { data: attendanceData } = await supabase
-        .from('attendance_records')
-        .select(`
-          *,
-          user:users(*),
-          session:attendance_sessions(*)
-        `)
-        .order('timestamp', { ascending: false })
-
-      // Load stats
-      const { count: studentsCount } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', 'student')
-
+      // Load data from local storage
+      const allSessions = getAllSessions()
+      const allUsers = getAllUsers()
+      const allRecords = getAllRecords()
+      
+      // Sort sessions by created date
+      const sortedSessions = allSessions.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+      
+      // Enhance attendance records with user and session data
+      const enhancedRecords = allRecords
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .map(record => ({
+          ...record,
+          user: allUsers.find(u => u.id === record.user_id),
+          session: allSessions.find(s => s.id === record.session_id)
+        }))
+      
+      // Calculate stats
+      const students = allUsers.filter(u => u.role === 'student')
       const today = new Date().toISOString().split('T')[0]
-      const { count: todayAttendanceCount } = await supabase
-        .from('attendance_records')
-        .select('*', { count: 'exact', head: true })
-        .gte('timestamp', `${today}T00:00:00`)
-        .lt('timestamp', `${today}T23:59:59`)
+      const todayRecords = allRecords.filter(r => 
+        r.timestamp.startsWith(today)
+      )
 
-      setSessions(sessionsData || [])
-      setAttendanceData(attendanceData || [])
+      setSessions(sortedSessions)
+      setAttendanceData(enhancedRecords)
       setStats({
-        totalSessions: sessionsData?.length || 0,
-        activeSession: sessionsData?.filter(s => s.is_active)?.length || 0,
-        totalStudents: studentsCount || 0,
-        todayAttendance: todayAttendanceCount || 0
+        totalSessions: allSessions.length,
+        activeSession: allSessions.filter(s => s.is_active).length,
+        totalStudents: students.length,
+        todayAttendance: todayRecords.length
       })
     } catch (error) {
       console.error('Error loading data:', error)
@@ -114,16 +111,18 @@ export function AdminDashboard() {
         }
       })
 
-      // Save session to database
-      const { error } = await supabase
-        .from('attendance_sessions')
-        .insert({
-          name: newSessionName,
-          qr_code: sessionId,
-          is_active: true
-        })
-
-      if (error) throw error
+      // Save session to local storage
+      const newSession: AttendanceSession = {
+        id: crypto.randomUUID(),
+        name: newSessionName,
+        qr_code: sessionId,
+        is_active: true,
+        created_by: crypto.randomUUID(), // In a real app, this would be the current user's ID
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      
+      saveSession(newSession)
 
       toast({
         title: "Success",
@@ -147,12 +146,13 @@ export function AdminDashboard() {
 
   const toggleSession = async (sessionId: string, currentStatus: boolean) => {
     try {
-      const { error } = await supabase
-        .from('attendance_sessions')
-        .update({ is_active: !currentStatus })
-        .eq('id', sessionId)
-
-      if (error) throw error
+      const allSessions = getAllSessions()
+      const sessionIndex = allSessions.findIndex(s => s.id === sessionId)
+      if (sessionIndex >= 0) {
+        allSessions[sessionIndex].is_active = !currentStatus
+        allSessions[sessionIndex].updated_at = new Date().toISOString()
+        saveSession(allSessions[sessionIndex])
+      }
 
       toast({
         title: "Success",
