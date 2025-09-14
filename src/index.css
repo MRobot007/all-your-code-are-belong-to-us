@@ -202,6 +202,30 @@
     box-shadow: var(--shadow-elegant);
   }
 
+  /* QR Scanner styling improvements */
+  #qr-reader {
+    border: none !important;
+  }
+
+  #qr-reader__dashboard_section {
+    background: transparent !important;
+  }
+
+  #qr-reader__camera_selection {
+    background: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: 6px !important;
+  }
+
+  #qr-reader__scan_region {
+    border: 2px solid hsl(var(--primary)) !important;
+  }
+
+  #qr-reader__scan_region img {
+    filter: none !important;
+  }
+
   /* Glass morphism effect */
   .glass {
     background: rgba(255, 255, 255, 0.1);

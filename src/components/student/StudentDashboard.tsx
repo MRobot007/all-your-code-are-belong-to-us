@@ -97,7 +97,10 @@ export function StudentDashboard() {
       { 
         fps: 10,
         qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.0
+        aspectRatio: 1.0,
+        showTorchButtonIfSupported: true,
+        showZoomSliderIfSupported: true,
+        defaultZoomValueIfSupported: 2
       },
       false
     )
@@ -161,7 +164,6 @@ export function StudentDashboard() {
       toast({
         title: "Success!",
         description: `Attendance marked for ${session.name}`,
-        variant: "default"
       })
 
       stopScanning()

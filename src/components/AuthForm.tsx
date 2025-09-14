@@ -9,9 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AlertCircle, QrCode, Users, GraduationCap } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loading } from '@/components/ui/loading'
+import { useToast } from '@/hooks/use-toast'
 
 export function AuthForm() {
   const { signIn, signUp } = useAuth()
+  const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState('signin')
@@ -138,7 +140,9 @@ export function AuthForm() {
 
                 <div className="text-center">
                   <p className="text-sm text-muted-foreground">
-                    Demo Admin: admin@attendance.com / admin123
+                    Demo accounts:<br/>
+                    Admin: admin@attendance.com / admin123<br/>
+                    Student: john@student.com / student123
                   </p>
                 </div>
               </TabsContent>

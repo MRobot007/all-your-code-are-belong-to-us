@@ -101,23 +101,13 @@ export function AdminDashboard() {
       // Generate unique session ID
       const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       
-      // Generate QR code data URL
-      const qrCodeDataUrl = await QRCode.toDataURL(sessionId, {
-        width: 300,
-        margin: 2,
-        color: {
-          dark: '#3B82F6',
-          light: '#FFFFFF'
-        }
-      })
-
       // Save session to local storage
       const newSession: AttendanceSession = {
         id: crypto.randomUUID(),
         name: newSessionName,
         qr_code: sessionId,
         is_active: true,
-        created_by: crypto.randomUUID(), // In a real app, this would be the current user's ID
+        created_by: 'admin-1',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -127,7 +117,6 @@ export function AdminDashboard() {
       toast({
         title: "Success",
         description: "QR code session generated successfully!",
-        variant: "default"
       })
       
       setNewSessionName('')
@@ -157,7 +146,6 @@ export function AdminDashboard() {
       toast({
         title: "Success",
         description: `Session ${!currentStatus ? 'activated' : 'deactivated'} successfully`,
-        variant: "default"
       })
       
       loadData()
@@ -227,7 +215,6 @@ export function AdminDashboard() {
     toast({
       title: "Success",
       description: "Attendance data exported successfully!",
-      variant: "default"
     })
   }
 
@@ -290,11 +277,12 @@ export function AdminDashboard() {
 
         <Card className="shadow-card border-border/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Attendance</CardTitle>
+            <CardTitle className="text-sm font-medium">Unique Students Today</CardTitle>
             <TrendingUp className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-warning">{stats.todayAttendance}</div>
+            <p className="text-xs text-muted-foreground">Students present today</p>
           </CardContent>
         </Card>
       </div>

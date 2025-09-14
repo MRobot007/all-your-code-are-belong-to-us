@@ -39,8 +39,60 @@ export interface AttendanceRecord {
   session?: AttendanceSession
 }
 
+// Initialize demo data
+const initializeDemoData = () => {
+  const users = getAllUsers()
+  if (users.length === 0) {
+    // Create demo admin user
+    const adminUser: User = {
+      id: 'admin-1',
+      email: 'admin@attendance.com',
+      password: 'admin123',
+      name: 'Admin User',
+      role: 'admin',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    
+    // Create demo student users
+    const studentUsers: User[] = [
+      {
+        id: 'student-1',
+        email: 'john@student.com',
+        password: 'student123',
+        name: 'John Doe',
+        enrollment_no: 'EN001',
+        semester: '3',
+        branch: 'Computer',
+        course: 'BE',
+        role: 'student',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: 'student-2',
+        email: 'jane@student.com',
+        password: 'student123',
+        name: 'Jane Smith',
+        enrollment_no: 'EN002',
+        semester: '3',
+        branch: 'Computer',
+        course: 'BE',
+        role: 'student',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+    ]
+    
+    // Save demo users
+    const allUsers = [adminUser, ...studentUsers]
+    localStorage.setItem(USERS_KEY, JSON.stringify(allUsers))
+  }
+}
+
 // Local storage helpers
 export const getCurrentUser = async (): Promise<User | null> => {
+  initializeDemoData()
   const userData = localStorage.getItem(CURRENT_USER_KEY)
   return userData ? JSON.parse(userData) : null
 }
@@ -66,6 +118,7 @@ export const saveUser = (user: User) => {
 }
 
 export const authenticateUser = (email: string, password: string): User | null => {
+  initializeDemoData()
   const users = getAllUsers()
   return users.find(u => u.email === email && u.password === password) || null
 }
